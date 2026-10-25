@@ -1,0 +1,13 @@
+{
+  "_note": "ILLUSTRATIVE VALUES ONLY. Replace with numbers from the NASA IPCC AR6 Sea Level Projection Tool for your site, then save as scenarios.json.",
+  "site": "Hyeres (example)",
+  "vertical_datum": "NGF-IGN69",
+  "baseline_water_level_m": 0.5,
+  "scenarios": [
+    {"name": "Today", "year": 2026, "rise_m": 0.0},
+    {"name": "SSP2-4.5", "year": 2050, "rise_m": 0.2},
+    {"name": "SSP2-4.5", "year": 2100, "rise_m": 0.5},
+    {"name": "SSP5-8.5", "year": 2100, "rise_m": 0.8},
+    {"name": "Extreme + storm surge", "year": 2100, "rise_m": 1.5}
+  ]
+}

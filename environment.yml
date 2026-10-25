@@ -1,0 +1,17 @@
+name: slr-vr
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - pillow
+  - matplotlib
+  - pdal
+  - python-pdal
+  - rasterio
+  - pytest
+  - jupyterlab
+  - pip
+  - pip:
+      - laspy[lazrs]
+      - open3d

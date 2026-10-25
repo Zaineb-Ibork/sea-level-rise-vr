@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sea-level rise viewer</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0d1520; color: #eee; font-family: system-ui, sans-serif; }
+    #ui { position: absolute; top: 12px; left: 12px; background: #000a; padding: 10px 14px; border-radius: 8px; max-width: 320px; }
+    #ui label { display: block; margin-top: 6px; font-size: 13px; }
+    select, input { width: 100%; }
+  </style>
+</head>
+<body>
+<div id="ui">
+  <strong>Sea-level rise</strong>
+  <label>Scenario <select id="scenario"></select></label>
+  <label>Water level: <span id="lvl">0.00</span> m<input id="slider" type="range" min="0" max="3" step="0.01" value="0"></label>
+  <small>Static connected "bathtub" model. Illustrative, not a forecast.</small>
+</div>
+<script type="importmap">
+  { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+// Files produced by the Python pipeline (copy them next to this page):
+const MODEL = 'town.glb', OFFSET = 'town.glb.offset.json', SCEN = 'scenarios.json';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+renderer.xr.enabled = true;
+document.body.append(renderer.domElement, VRButton.createButton(renderer));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9cc6e8);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.0));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(200, 400, 100); scene.add(sun);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 5000);
+camera.position.set(0, 150, 250);
+const controls = new OrbitControls(camera, renderer.domElement);
+
+let zOffset = 0;
+try { zOffset = (await (await fetch(OFFSET)).json()).offset_l93[2]; } catch { console.warn('no offset file'); }
+
+const water = new THREE.Mesh(
+  new THREE.PlaneGeometry(5000, 5000).rotateX(-Math.PI / 2),
+  new THREE.MeshPhongMaterial({ color: 0x1e6ec8, transparent: true, opacity: 0.7, shininess: 90 }));
+scene.add(water);
+
+new GLTFLoader().load(MODEL, g => scene.add(g.scene), undefined,
+  () => { // placeholder terrain when no model is present yet
+    const geo = new THREE.PlaneGeometry(400, 400, 100, 100).rotateX(-Math.PI / 2);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, 3 * Math.sin(p.getX(i) / 40) + p.getZ(i) / 60 + 2);
+    geo.computeVertexNormals();
+    scene.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x8a9a6a })));
+    zOffset = 0;
+  });
+
+const slider = document.getElementById('slider'), lvl = document.getElementById('lvl'), sel = document.getElementById('scenario');
+let target = 0;
+function setLevel(m) { target = m; slider.value = m; lvl.textContent = m.toFixed(2); }
+slider.oninput = () => setLevel(+slider.value);
+
+try {
+  const cfg = await (await fetch(SCEN)).json();
+  cfg.scenarios.forEach((s, i) => sel.add(new Option(`${s.name} - ${s.year}`, i)));
+  sel.onchange = () => setLevel(cfg.baseline_water_level_m + cfg.scenarios[sel.value].rise_m);
+  sel.onchange();
+} catch { sel.add(new Option('scenarios.json not found')); }
+
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+renderer.setAnimationLoop(() => {
+  water.position.y += ((target - zOffset) - water.position.y) * 0.05;
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
